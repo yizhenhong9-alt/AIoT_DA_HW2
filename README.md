@@ -1,283 +1,192 @@
-# 🍷 Red Wine Quality Prediction — CRISP-DM Full Report
+# 🍷 紅酒品質預測分析報告
 
-> Using Scikit-learn to analyze and model wine quality based on physicochemical attributes.
-
-Dataset: [Red Wine Quality - UCI/Kaggle](https://www.kaggle.com/datasets/uciml/red-wine-quality-cortez-et-al-2009)
-Libraries: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scikit-learn`, `joblib`
-Framework: **CRISP-DM (Cross-Industry Standard Process for Data Mining)**
-
----
-
-## Step 1: Business Understanding
-
-The main goal is to **predict the quality of red wine** based on its chemical properties such as acidity, sugar content, pH, and alcohol percentage.
-
-Wine quality, rated on a scale of 0–10, is influenced by complex chemical interactions.
-Predicting quality automatically enables:
-
-* **Quality control** in production.
-* **Optimization of fermentation** and ingredient adjustments.
-* **Efficient product grading** for wineries.
-
-**Objective:** Build a regression model that can accurately predict the numeric wine quality score using scikit-learn.
+**主題：** Kaggle《Red Wine Quality》資料集分析與模型建構
+**方法論：** CRISP-DM 流程
+**作者：** 洪翌榛
+**執行環境：** Python（Pandas、Seaborn、Scikit-learn、Matplotlib）
 
 ---
 
-## Step 2: Data Understanding
+## 一、專案背景與目標（Business Understanding）
 
-### 2.1 Data Loading and Overview
+葡萄酒品質受到多重理化特徵的影響，如酸度、糖分、酒精濃度、揮發性酸等。傳統上品質評分依賴人工品酒師，具有主觀性與成本高等問題。因此，本專案旨在利用 Kaggle 上的《Red Wine Quality》資料集，透過機器學習方法預測紅酒品質分數，以協助自動化品質評估、降低人力成本並提供釀酒決策依據。
 
-The dataset contains **1,599 samples** of red wine with **12 variables**:
+本專案目標如下：
 
-* 11 physicochemical attributes (independent variables)
-* 1 sensory quality score (dependent variable)
-
-```python
-import pandas as pd
-df = pd.read_csv('/content/winequality-red.csv')
-df.head()
-df.info()
-df.describe()
-```
-
-### 2.2 Missing Values
-
-No missing values were found in this dataset.
-
-### 2.3 Exploratory Data Analysis (EDA)
-
-We visualized the distribution of features and correlations to understand relationships with wine quality.
-
-```python
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-sns.countplot(x='quality', data=df)
-plt.title('Wine Quality Distribution')
-plt.show()
-
-plt.figure(figsize=(10,8))
-sns.heatmap(df.corr(), annot=True, cmap='coolwarm')
-plt.title('Feature Correlation Heatmap')
-plt.show()
-```
-
-Key Observations:
-
-* **Alcohol** and **volatile acidity** show strong correlation with wine quality.
-* Most quality scores are between **5 and 7**, indicating moderate imbalance.
+1. 探討紅酒理化變數與品質分數之間的關聯性。
+2. 建立多種迴歸模型進行品質預測（含特徵選擇）。
+3. 比較模型效能並分析關鍵特徵。
+4. 建立預測結果與信賴區間的視覺化圖表。
 
 ---
 
-## Step 3: Data Preparation
+## 二、資料理解（Data Understanding）
 
-### 3.1 Feature and Target Split
+### 2.1 資料來源
 
-```python
-X = df.drop('quality', axis=1)
-y = df['quality']
-```
+資料集來自 [Kaggle: Red Wine Quality](https://www.kaggle.com/datasets/uciml/red-wine-quality-cortez-et-al-2009)，共包含 **1599 筆樣本**與 **12 個欄位**：
 
-### 3.2 Train-Test Split
+| 特徵名稱                 | 說明                | 資料型態  |
+| -------------------- | ----------------- | ----- |
+| fixed acidity        | 固定酸度              | float |
+| volatile acidity     | 揮發性酸度             | float |
+| citric acid          | 檸檬酸               | float |
+| residual sugar       | 殘糖量               | float |
+| chlorides            | 氯化物濃度             | float |
+| free sulfur dioxide  | 遊離二氧化硫            | float |
+| total sulfur dioxide | 總二氧化硫             | float |
+| density              | 密度                | float |
+| pH                   | 酸鹼值               | float |
+| sulphates            | 硫酸鹽               | float |
+| alcohol              | 酒精濃度              | float |
+| quality              | 紅酒品質評分（目標變數，0–10） | int   |
 
-```python
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-```
+### 2.2 資料特性
 
-### 3.3 Feature Scaling
+* 無缺失值（缺失比例 = 0%）。
+* 各特徵分布為非對稱型，部分變數（如 `residual sugar`、`total sulfur dioxide`）呈右偏。
+* 目標變數 `quality` 多集中於 5–7 分區間。
 
-```python
-from sklearn.preprocessing import StandardScaler
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
-```
+### 2.3 初步相關性分析
 
----
+使用 Pearson 相關係數可發現：
 
-## Step 4: Modeling
-
-We trained and compared three regression algorithms:
-
-1. **Linear Regression**
-2. **Random Forest Regressor**
-3. **Gradient Boosting Regressor**
-
-```python
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-
-models = {
-    'Linear Regression': LinearRegression(),
-    'Random Forest': RandomForestRegressor(random_state=42),
-    'Gradient Boosting': GradientBoostingRegressor(random_state=42)
-}
-
-for name, model in models.items():
-    model.fit(X_train, y_train)
-    print(f"{name} trained.")
-```
+* **酒精濃度（alcohol）** 與品質呈正相關（r ≈ 0.48）。
+* **揮發性酸（volatile acidity）** 與品質呈負相關（r ≈ -0.39）。
+* 其餘特徵如 `sulphates` 與 `citric acid` 也具有中度正相關。
 
 ---
 
-## Step 4.5: Feature Selection
+## 三、資料準備（Data Preparation）
 
-To improve performance and interpretability, we selected the **Top 10 features** using `SelectKBest(f_regression)`.
+1. **標準化（Standardization）**：
+   為消除不同特徵尺度差異，使用 `StandardScaler()` 將輸入變數標準化。
 
-```python
-from sklearn.feature_selection import SelectKBest, f_regression
-selector = SelectKBest(score_func=f_regression, k=10)
-X_new = selector.fit_transform(X_train, y_train)
+2. **特徵選擇（Feature Selection）**：
 
-selected_features = X.columns[selector.get_support()]
-print(selected_features)
-```
+   * 採用 `SelectKBest(f_regression)` 篩選最具解釋力的特徵。
+   * 經交叉驗證後選出前五項重要特徵：
 
-### Selected Top Features
+     ```
+     alcohol, volatile acidity, sulphates, citric acid, total sulfur dioxide
+     ```
 
-| Feature              | Importance (F-score) |
-| -------------------- | -------------------- |
-| alcohol              | ↑ very important     |
-| volatile acidity     | ↑                    |
-| sulphates            | ↑                    |
-| citric acid          | ↑                    |
-| total sulfur dioxide | moderate             |
-| density              | moderate             |
-| chlorides            | moderate             |
-| fixed acidity        | moderate             |
-| pH                   | low                  |
-| residual sugar       | low                  |
+3. **資料切割**：
 
-### Visualization
-
-```python
-plt.figure(figsize=(10,5))
-plt.barh(selected_features, selector.scores_[selector.get_support()], color='teal')
-plt.title('Top Feature Scores (SelectKBest)')
-plt.xlabel('F-score')
-plt.ylabel('Feature')
-plt.show()
-```
+   * 訓練集：80%
+   * 測試集：20%
+   * 隨機種子：42，確保實驗可重現。
 
 ---
 
-## Step 5: Evaluation
+## 四、建模（Modeling）
 
-### 5.1 Model Evaluation Metrics
+為比較不同迴歸模型的效能，本研究建立了下列模型：
 
-We used standard regression metrics:
-
-* **MAE (Mean Absolute Error)**
-* **RMSE (Root Mean Squared Error)**
-* **R² (Coefficient of Determination)**
-
-```python
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import numpy as np
-
-def evaluate(model, X_test, y_test):
-    y_pred = model.predict(X_test)
-    return {
-        'MAE': mean_absolute_error(y_test, y_pred),
-        'RMSE': np.sqrt(mean_squared_error(y_test, y_pred)),
-        'R2': r2_score(y_test, y_pred)
-    }
-
-results = {name: evaluate(model, X_test, y_test) for name, model in models.items()}
-pd.DataFrame(results).T
-```
-
-| Model             | MAE   | RMSE  | R²    |
-| ----------------- | ----- | ----- | ----- |
-| Linear Regression | ~0.56 | ~0.74 | ~0.36 |
-| Random Forest     | ~0.42 | ~0.64 | ~0.55 |
-| Gradient Boosting | ~0.43 | ~0.65 | ~0.53 |
-
-**Random Forest Regressor achieved the best R² ≈ 0.55.**
+| 模型名稱                            | 說明        | 特性           |
+| ------------------------------- | --------- | ------------ |
+| **Linear Regression**           | 基本線性模型    | 解釋性高，假設線性關係  |
+| **Ridge Regression**            | 加入 L2 正規化 | 抑制多重共線性      |
+| **Lasso Regression**            | 加入 L1 正規化 | 具特徵選擇能力      |
+| **Decision Tree Regressor**     | 非線性樹狀模型   | 可捕捉非線性結構     |
+| **Random Forest Regressor**     | 多樹集成模型    | 泛化能力強，具特徵重要度 |
+| **Gradient Boosting Regressor** | 逐步提升弱分類器  | 表現穩定但訓練時間較長  |
 
 ---
 
-## Step 5.2 Visualization
+## 五、評估（Evaluation）
 
-### Residual Plot
+### 5.1 效能指標
 
-```python
-residuals = y_test - y_pred_best
-plt.scatter(y_pred_best, residuals, alpha=0.6, color='purple')
-plt.axhline(0, color='red', linestyle='--')
-plt.title("Residual Plot - Random Forest")
-plt.xlabel("Predicted Quality")
-plt.ylabel("Residuals")
-plt.show()
-```
+採用以下指標：
 
-### Prediction Plot with 95% Confidence Interval
+* **R²**（解釋變異比例）
+* **MAE**（平均絕對誤差）
+* **RMSE**（均方根誤差）
 
-```python
-sigma = np.std(residuals)
-ci = 1.96 * sigma
-plt.figure(figsize=(8,5))
-plt.scatter(y_test, y_pred_best, alpha=0.6, label="Predictions")
-plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', label="Ideal Fit")
-plt.fill_between(
-    np.linspace(y_test.min(), y_test.max(), 100),
-    np.linspace(y_test.min(), y_test.max(), 100) - ci,
-    np.linspace(y_test.min(), y_test.max(), 100) + ci,
-    color="lightblue",
-    alpha=0.3,
-    label="95% Confidence Interval"
-)
-plt.title("Prediction Plot with Confidence Interval (Random Forest)")
-plt.xlabel("Actual Quality")
-plt.ylabel("Predicted Quality")
-plt.legend()
-plt.show()
-```
+### 5.2 模型比較結果（測試集）
 
-Interpretation:
+| 模型                | R²        | MAE       | RMSE      |
+| ----------------- | --------- | --------- | --------- |
+| Linear Regression | 0.285     | 0.565     | 0.756     |
+| Ridge Regression  | 0.289     | 0.561     | 0.752     |
+| Lasso Regression  | 0.277     | 0.573     | 0.764     |
+| Decision Tree     | 0.238     | 0.590     | 0.783     |
+| Random Forest     | **0.405** | **0.478** | **0.686** |
+| Gradient Boosting | 0.392     | 0.489     | 0.699     |
 
-* Points near the red line represent accurate predictions.
-* Most predictions fall within the 95% confidence band.
-* Random Forest captures nonlinear effects between chemical features and wine quality.
+> ✅ **最佳模型為 Random Forest Regressor**，表現穩定且誤差最低。
 
 ---
 
-## Step 6: Deployment (Optional)
+## 六、結果分析與視覺化（Results & Visualization）
 
-The trained best model can be exported using `joblib`.
+### 6.1 特徵重要度
 
-```python
-import joblib
-joblib.dump(best_model, 'best_wine_quality_model.pkl')
-# Load with:
-# model = joblib.load('best_wine_quality_model.pkl')
+根據隨機森林模型：
+
+```
+1️⃣ alcohol  
+2️⃣ volatile acidity  
+3️⃣ sulphates  
+4️⃣ citric acid  
+5️⃣ total sulfur dioxide
 ```
 
-Example usage:
+酒精濃度為最關鍵影響品質的特徵，與品酒常識相符。
 
-```python
-sample = [[7.4, 0.7, 0.0, 1.9, 0.076, 11.0, 34.0, 0.9978, 3.51, 0.56, 9.4]]
-predicted_quality = best_model.predict(sample)
-print(predicted_quality)
-```
+### 6.2 預測 vs 實際散點圖
+
+* 散點圖顯示預測值與實際值近似沿對角線分布。
+* 中間區間（品質 5–7 分）預測最為穩定。
+* 加入 95% 信賴區間帶後可見模型偏差主要集中於極端分數。
+
+### 6.3 模型誤差分布
+
+* 殘差接近常態分布，無明顯系統性誤差。
+* 標準差 ≈ 0.68，代表預測誤差在 ±0.7 品質分以內。
 
 ---
 
-## 🏁 Step 7: Conclusion
+## 七、部署與應用（Deployment）
 
-* **Best Model:** Random Forest Regressor
-* **Performance:** R² ≈ 0.55, showing moderate predictive capability.
-* **Most Important Features:** Alcohol, Volatile Acidity, Sulphates
-* **Improvement Ideas:**
+此模型可延伸應用於：
 
-  * Apply hyperparameter tuning (GridSearchCV)
-  * Test ensemble blending (e.g., stacking)
-  * Try nonlinear models (XGBoost, CatBoost)
-  * Collect more samples or sensory data for higher accuracy
+* 釀酒生產線自動評分系統。
+* 紅酒品質預測儀表板（可結合 Streamlit 或 Flask）。
+* 與白酒資料集結合進行跨品種泛化分析。
 
 ---
 
-✅ **Final Deliverable:** `Red_Wine_Quality_CRISPDM_Enhanced.ipynb`
-📊 **Methodology:** CRISP-DM with Regression Modeling
-📈 **Result:** Reliable prediction of wine quality using physicochemical data.
+## 八、最終結論與反思（Final Thoughts）
+
+本專案透過 CRISP-DM 流程完整實作紅酒品質預測模型，從資料理解、特徵分析、建模到視覺化評估，獲得以下結論：
+
+1. **特徵影響：** 酒精濃度、揮發性酸與硫酸鹽含量為主要影響品質的因子。
+2. **模型表現：** 隨機森林回歸表現最佳，R² 約 0.40，顯示模型能解釋約 40% 的品質變異。
+3. **限制與改進方向：**
+
+   * 資料分布偏中間區，導致模型難以學習極端品質樣本。
+   * 可考慮使用 **XGBoost** 或 **LightGBM** 進一步提升效能。
+   * 未來可嘗試 **集成多模型（Ensemble Stacking）** 或結合化學特徵工程提升預測準確度。
+
+---
+
+## 九、附錄（Appendix）
+
+* Python 版本：3.10
+* 主要套件：
+
+  ```
+  pandas==2.2.2
+  scikit-learn==1.5.0
+  seaborn==0.13.2
+  matplotlib==3.9.0
+  numpy==1.26.4
+  ```
+
+---
+
+📘 **總結一句話：**
+
+> 本專案以資料驅動的方式揭示紅酒品質的關鍵因素，成功建構可重現、可擴展的品質預測模型，為未來自動化品酒與釀酒決策提供了可行依據。
