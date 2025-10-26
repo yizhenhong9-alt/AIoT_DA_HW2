@@ -34,7 +34,7 @@ The dataset contains **1,599 samples** of red wine with **12 variables**:
 
 ```python
 import pandas as pd
-df = pd.read_csv('/kaggle/input/red-wine-quality-cortez-et-al-2009/winequality-red.csv')
+df = pd.read_csv('/content/winequality-red.csv')
 df.head()
 df.info()
 df.describe()
